@@ -117,3 +117,13 @@ class CompareResponse(BaseModel):
     case: EmergencyCase
     baseline: OptimizationResult
     optimized: OptimizationResult
+
+
+class HardwareVoiceRequest(BaseModel):
+    transcript: str
+
+
+class HardwareOptimizationEvent(BaseModel):
+    transcript: str
+    received_at: datetime
+    comparison: CompareResponse

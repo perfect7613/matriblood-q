@@ -1,6 +1,6 @@
-import type { CompareResponse, EmergencyCase, ScenarioState } from "./types";
+import type { CompareResponse, EmergencyCase, HardwareOptimizationEvent, ScenarioState } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
 
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -40,4 +40,10 @@ export async function compareScenario(caseData: EmergencyCase, scenario: Scenari
       force_classical_fallback: false
     })
   });
+}
+
+export async function getLatestHardwareEvent(): Promise<HardwareOptimizationEvent | null> {
+  const payload = await jsonFetch<HardwareOptimizationEvent | { status: "idle" }>("/hardware/latest");
+  if ("status" in payload) return null;
+  return payload;
 }

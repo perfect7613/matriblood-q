@@ -80,3 +80,9 @@ export type CompareResponse = {
   baseline: OptimizationResult;
   optimized: OptimizationResult;
 };
+
+export type HardwareOptimizationEvent = {
+  transcript: string;
+  received_at: string;
+  comparison: CompareResponse;
+};

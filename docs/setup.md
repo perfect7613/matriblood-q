@@ -5,13 +5,13 @@
 ```bash
 uv venv
 uv sync
-uv run uvicorn app.main:app --reload --app-dir services/api
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --app-dir services/api
 ```
 
 Health check:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 ```
 
 Run tests:
@@ -57,4 +57,3 @@ The schema is intentionally small and demo-focused:
 Copy `.env.example` to `.env.local`, then fill the local values.
 
 Never commit `.env.local`.
-

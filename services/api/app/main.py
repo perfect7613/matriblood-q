@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .baseline import greedy_nearest_source
-from .models import CompareResponse, OptimizeRequest, ParseTranscriptRequest, ParseTranscriptResponse
+from .models import (
+    CompareResponse,
+    HardwareOptimizationEvent,
+    HardwareVoiceRequest,
+    OptimizeRequest,
+    ParseTranscriptRequest,
+    ParseTranscriptResponse,
+)
 from .optimizer import optimize_procurement
 from .parser import fallback_parse_transcript, parse_with_tokenrouter
 from .seed_data import demo_scenario
@@ -18,6 +26,7 @@ load_dotenv()
 
 
 app = FastAPI(title="MatriBlood Q API", version="0.1.0")
+latest_hardware_event: HardwareOptimizationEvent | None = None
 
 origins = [origin.strip() for origin in os.getenv("API_CORS_ORIGINS", "http://localhost:3000").split(",")]
 app.add_middleware(
@@ -56,7 +65,8 @@ async def parse_transcript(request: ParseTranscriptRequest) -> ParseTranscriptRe
             client = get_supabase()
             if client:
                 persist_case(client, case)
-            return ParseTranscriptResponse(case=case, source="tokenrouter_or_fallback", raw_model_output=raw)
+            source = "tokenrouter" if raw else "fallback"
+            return ParseTranscriptResponse(case=case, source=source, raw_model_output=raw)
         except Exception:
             # Demo resilience: the dashboard can still proceed with deterministic parsing.
             pass
@@ -105,3 +115,36 @@ def compare(request: OptimizeRequest) -> CompareResponse:
             # Persistence should never break the live demo path.
             pass
     return comparison
+
+
+@app.post("/hardware/voice-optimization", response_model=HardwareOptimizationEvent)
+async def hardware_voice_optimization(request: HardwareVoiceRequest) -> HardwareOptimizationEvent:
+    global latest_hardware_event
+
+    scenario_state = demo_scenario()
+    try:
+        parsed_case, _raw = await parse_with_tokenrouter(request.transcript)
+    except Exception:
+        parsed_case = fallback_parse_transcript(request.transcript)
+
+    comparison = compare(
+        OptimizeRequest(
+            case=parsed_case,
+            sources=scenario_state.sources,
+            couriers=scenario_state.couriers,
+            force_classical_fallback=False,
+        )
+    )
+    latest_hardware_event = HardwareOptimizationEvent(
+        transcript=request.transcript,
+        received_at=datetime.now(timezone.utc),
+        comparison=comparison,
+    )
+    return latest_hardware_event
+
+
+@app.get("/hardware/latest")
+def hardware_latest():
+    if latest_hardware_event is None:
+        return {"status": "idle"}
+    return latest_hardware_event

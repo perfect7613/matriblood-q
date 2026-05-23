@@ -10,8 +10,9 @@
     "build": "npm run build --workspace apps/web",
     "lint": "npm run lint --workspace apps/web",
     "typecheck": "npm run typecheck --workspace apps/web",
-    "api": "uv run uvicorn app.main:app --app-dir services/api",
-    "api:dev": "uv run uvicorn app.main:app --reload --reload-exclude .venv --app-dir services/api",
+    "elato:auth": "deno run -A --env-file=integrations/ElatoAI/frontend-nextjs/.env.local tools/elato-auth-server.ts",
+    "api": "uv run uvicorn app.main:app --host 0.0.0.0 --port 8001 --app-dir services/api",
+    "api:dev": "uv run uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --reload-exclude .venv --app-dir services/api",
     "api:test": "python3 -m pytest services/api/tests",
     "seed:local-json": "python3 services/api/scripts/write_seed_snapshot.py"
   }

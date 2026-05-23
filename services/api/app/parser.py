@@ -78,7 +78,8 @@ def fallback_parse_transcript(transcript: str) -> EmergencyCase:
 
 def _normalize_model_json(payload: Dict[str, Any], transcript: str) -> EmergencyCase:
     products = []
-    for item in payload.get("required_products", []):
+    raw_products = payload.get("required_products") or payload.get("items") or payload.get("products") or []
+    for item in raw_products:
         product = str(item.get("product_type", "")).lower()
         product_type = {
             "prbc": ProductType.PRBC,
@@ -94,7 +95,7 @@ def _normalize_model_json(payload: Dict[str, Any], transcript: str) -> Emergency
         products.append(
             ProductRequest(
                 product_type=product_type,
-                blood_group=item.get("blood_group"),
+                blood_group=normalize_blood_group(str(item.get("blood_group") or "")) or item.get("blood_group"),
                 units=max(1, int(item.get("units", 1))),
             )
         )
@@ -105,10 +106,10 @@ def _normalize_model_json(payload: Dict[str, Any], transcript: str) -> Emergency
     return EmergencyCase(
         id="case-from-tokenrouter",
         transcript=transcript,
-        case_type=payload.get("case_type", "postpartum_hemorrhage"),
+        case_type=payload.get("case_type") or payload.get("scenario") or "postpartum_hemorrhage",
         patient_status=payload.get("patient_status", "unknown"),
-        target_minutes=int(payload.get("target_minutes", 30)),
-        urgency_score=int(payload.get("urgency_score", 9)),
+        target_minutes=int(payload.get("target_minutes") or next((item.get("target_minutes") for item in raw_products if item.get("target_minutes")), 30)),
+        urgency_score=int(payload.get("urgency_score") or next((item.get("urgency_score") for item in raw_products if item.get("urgency_score")), 9)),
         required_products=products,
         missing_fields=payload.get("missing_fields", []),
         parser_confidence=float(payload.get("confidence", 0.85)),
@@ -121,9 +122,12 @@ async def parse_with_tokenrouter(transcript: str) -> tuple[EmergencyCase, Option
         return fallback_parse_transcript(transcript), None
 
     base_url = os.getenv("TOKENROUTER_BASE_URL", "https://api.tokenrouter.io").rstrip("/")
-    model = os.getenv("TOKENROUTER_MODEL", "openai/gpt-4.1-mini")
+    model = os.getenv("TOKENROUTER_MODEL", "openai/gpt-5-mini")
     prompt = (
-        "Extract obstetric emergency procurement requirements as strict JSON. "
+        "Extract obstetric emergency procurement requirements as strict JSON with this exact top-level shape: "
+        '{"case_type": string, "patient_status": string, "target_minutes": number, '
+        '"urgency_score": number, "required_products": [{"product_type": string, '
+        '"blood_group": string|null, "units": number}], "missing_fields": string[], "confidence": number}. '
         "Do not decide treatment. Use product_type values only: PRBC, FFP, platelets, "
         "tranexamic_acid, oxytocin. Include blood_group when spoken, units, target_minutes, "
         "urgency_score, missing_fields, confidence.\n\nTranscript:\n"
@@ -137,7 +141,9 @@ async def parse_with_tokenrouter(transcript: str) -> tuple[EmergencyCase, Option
             json={
                 "model": model,
                 "input": prompt,
-                "text": {"format": {"type": "json_object"}},
+                "response_format": {"type": "json_object"},
+                "reasoning": {"effort": "minimal"},
+                "max_output_tokens": 800,
             },
         )
         response.raise_for_status()

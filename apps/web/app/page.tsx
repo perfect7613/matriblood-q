@@ -2,8 +2,16 @@
 
 import { Activity, AlertTriangle, Cpu, Database, GitBranch, Mic2, RadioTower, RefreshCw, Send, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { compareScenario, getScenario, parseTranscript } from "./api";
-import type { CompareResponse, EmergencyCase, OptimizationResult, ProcurementSource, ProductRequest, ScenarioState } from "./types";
+import { compareScenario, getLatestHardwareEvent, getScenario, parseTranscript } from "./api";
+import type {
+  CompareResponse,
+  EmergencyCase,
+  HardwareOptimizationEvent,
+  OptimizationResult,
+  ProcurementSource,
+  ProductRequest,
+  ScenarioState
+} from "./types";
 
 function productLabel(item: ProductRequest | { product_type: string; blood_group?: string | null }) {
   const names: Record<string, string> = {
@@ -89,11 +97,62 @@ function InventoryPanel({ sources }: { sources: ProcurementSource[] }) {
   );
 }
 
+function metaText(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return String(value.length);
+  return "-";
+}
+
+function HardwareFeed({ event }: { event: HardwareOptimizationEvent | null }) {
+  const optimized = event?.comparison.optimized;
+  const metadata = optimized?.solver_metadata || {};
+
+  return (
+    <section className="hardware-band">
+      <section className="panel dark">
+        <div className="panel-header">
+          <h2 className="panel-title">
+            <Activity size={16} /> Live hardware feed
+          </h2>
+          <span className={`badge ${event ? "teal" : "amber"}`}>{event ? "voice received" : "waiting"}</span>
+        </div>
+        <div className="panel-body hardware-body">
+          <div>
+            <span className="hardware-label">Latest ESP32 transcript</span>
+            <p>{event?.transcript || "Speak into the Elato device to trigger this panel."}</p>
+          </div>
+          <div className="hardware-stats">
+            <div>
+              <strong>{metaText(metadata, "qiskit_available")}</strong>
+              <span>Qiskit loaded</span>
+            </div>
+            <div>
+              <strong>{metaText(metadata, "solver_type")}</strong>
+              <span>solver path</span>
+            </div>
+            <div>
+              <strong>{metaText(metadata, "binary_variables")}</strong>
+              <span>binary variables</span>
+            </div>
+            <div>
+              <strong>{optimized?.complete_kit_eta_minutes ? `${optimized.complete_kit_eta_minutes}m` : "-"}</strong>
+              <span>optimized ETA</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  );
+}
+
 export default function Home() {
   const [scenario, setScenario] = useState<ScenarioState | null>(null);
   const [caseData, setCaseData] = useState<EmergencyCase | null>(null);
   const [transcript, setTranscript] = useState("");
   const [comparison, setComparison] = useState<CompareResponse | null>(null);
+  const [hardwareEvent, setHardwareEvent] = useState<HardwareOptimizationEvent | null>(null);
+  const [lastHardwareAt, setLastHardwareAt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +165,26 @@ export default function Home() {
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load scenario"));
   }, []);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const event = await getLatestHardwareEvent();
+        setHardwareEvent(event);
+        if (event && event.received_at !== lastHardwareAt) {
+          setLastHardwareAt(event.received_at);
+          setTranscript(event.transcript);
+          setCaseData(event.comparison.case);
+          setComparison(event.comparison);
+        }
+      } catch {
+        // The hardware panel is best-effort; manual demo controls stay usable.
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 2000);
+    return () => window.clearInterval(timer);
+  }, [lastHardwareAt]);
 
   const spokenResponse = useMemo(() => {
     const optimized = comparison?.optimized;
@@ -235,6 +314,8 @@ export default function Home() {
 
         <InventoryPanel sources={scenario?.sources || []} />
       </section>
+
+      <HardwareFeed event={hardwareEvent} />
 
       <section className="quantum-band">
         <div className="formula">

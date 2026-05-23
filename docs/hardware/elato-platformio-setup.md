@@ -14,7 +14,8 @@ Elato ESP32 -> Elato Deno WebSocket server -> Supabase transcript/message -> Mat
 
 - Remote Supabase project configured in `.env.local`
 - Elato Deno WebSocket server running locally
-- Python API running locally on `http://localhost:8000`
+- Elato Deno voice WebSocket server running locally on `ws://0.0.0.0:8000`
+- MatriBlood Python API running locally on `http://localhost:8001`
 - Next.js dashboard running locally on `http://localhost:3000`
 - ESP32 and laptop on the same Wi-Fi network
 
@@ -31,11 +32,11 @@ Set the WebSocket and backend server values to your laptop LAN IP, not `localhos
 Example:
 
 ```cpp
-const char* ws_server = "ws://192.168.1.20:8000/ws";
-const char* backend_server = "http://192.168.1.20:3000";
+const char* ws_server = "172.18.10.136";
+const char* backend_server = "172.18.10.136";
 ```
 
-Replace `192.168.1.20` with your actual laptop IP.
+Replace `172.18.10.136` with your actual laptop IP whenever you change Wi-Fi.
 
 On macOS, get it with:
 
@@ -67,4 +68,3 @@ This preserves the full core story:
 ```text
 voice-style request -> structured case -> Qiskit procurement plan -> operator action
 ```
-
