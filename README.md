@@ -4,6 +4,11 @@ Voice-first quantum-optimized procurement for obstetric emergency kits.
 
 MatriBlood Q is a hackathon MVP concept for maternity emergencies such as postpartum hemorrhage. A clinician speaks the requested blood products and emergency medicines into an Elato ESP32 voice device. The system turns that request into structured procurement requirements, uses Qiskit to optimize the source-product-courier plan, and returns a clear action plan through a dashboard and spoken response.
 
+## Demo Assets
+
+- [Final presentation PDF](deliverables/MatriBlood-Q-Final-Presentation.pdf)
+- [Demo video](VIDEO_LINK_HERE)
+
 ## Problem
 
 Maternity emergencies often need a complete kit quickly, not just partial stock visibility. A nearby blood bank may have one product but not another, platelets may expire soon, and medicines may need to come from a pharmacy rather than a blood bank. The hard decision is choosing the fastest feasible combination across sources, inventory, compatibility, expiry, and courier constraints.
@@ -113,4 +118,3 @@ Qiskit optimized plan:
 ## Safety Boundary
 
 MatriBlood Q is a procurement and logistics support tool. It does not diagnose, prescribe, or decide treatment. Clinical compatibility and use of blood products or medicines must be verified by qualified clinicians and transfusion specialists.
-
